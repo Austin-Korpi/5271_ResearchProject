@@ -39,6 +39,7 @@ extern "C" {
 #define FFMALLOC_API
 #endif
 
+#define FF_WRAP_MMAP
 
 // When USE_FF_PREFIX is not defined, the public API will match the names
 // of the standard allocation functions. Useful when using LD_PRELOAD to 

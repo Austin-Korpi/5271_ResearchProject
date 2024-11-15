@@ -41,6 +41,9 @@
 /*** Headers ***/
 #include "ffmalloc.h"
 
+#include <sys/syscall.h>
+#include <unistd.h>
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -540,6 +543,9 @@ static size_t poolCount = 0;
 //static byte* volatile poolHighWater;
 static byte* poolHighWater;
 
+// The starting address of ffmalloc's memory region
+static byte* baseAddress;
+
 // Root node of radix tree containing all pools
 static struct radixroot_t poolTree;
 
@@ -681,7 +687,7 @@ static inline void* os_alloc_highwater(size_t size) {
 
 	while(result == NULL) {
 		// TODO: Add wrap around if we hit the top of address space
-		result = mmap(localHigh, size, PROT_READ | PROT_WRITE,
+		result = (void *)syscall(SYS_mmap, localHigh, size, PROT_READ | PROT_WRITE,
 				flags, -1, 0);
 		if(result == MAP_FAILED) {
 			// If the failure was because the requested address already has
@@ -1473,10 +1479,11 @@ static void initialize() {
 	// Find the top of the heap on Linux then add 1GB so that there is
 	// no contention with small mallocs from libc when used side-by-side
 	poolHighWater = (byte*)sbrk(0) + 0x40000000;
+	baseAddress = poolHighWater;
 
 	// Create a large contiguous range of virtual address space but don't
 	// actually map the addresses to pages just yet
-	metadataPool = (byte*)mmap(NULL, 1024UL * 1048576UL, PROT_NONE, 
+	metadataPool = (byte*)syscall(SYS_mmap, NULL, 1024UL * 1048576UL, PROT_NONE, 
 			MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
 	metadataFree = metadataPool;
 	metadataEnd = metadataPool + POOL_SIZE;
@@ -3346,7 +3353,7 @@ static void print_current_usage() {
 		// This all is only valid so long as large OS pages are not supported
 		FILE* stat = fopen("/proc/self/statm", "r");
 		if (stat) {
-			fscanf(stat, "%lu ", &currentOSReported);
+			if (fscanf(stat, "%lu ", &currentOSReported)){}
 			fclose(stat);
 			currentOSReported *= 4096;
 		}
@@ -3370,5 +3377,39 @@ static void print_current_usage() {
 			smallPoolCount, largePoolCount, jumboPoolCount,
 			numEmptyLargePool);
 	}
+}
+#endif
+
+#ifdef FF_WRAP_MMAP
+/*
+Pass the mmap request to the OS. Remove address hints that conflict with ffmalloc.
+*/
+void *ffmmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
+	// If there is an address hint inside the range of one time allocation, remove it.
+	if ((byte *)addr >= baseAddress && (byte *)addr < poolHighWater &&
+			((flags & (MAP_FIXED | MAP_FIXED_NOREPLACE)) != 0)) {
+		addr = 0;
+	}
+    return (void *)syscall(SYS_mmap, addr, length, prot, flags, fd, offset);
+}
+
+
+/* 
+Don't unmap memory. This would allow malloc or mmap to reuse it. Instead, 
+call mmap again on the same memory. We get the original physical memory back,
+because the OS won't assign physical memory right away. We do lose virtual
+address space.
+*/
+int ffmunmap(void *addr, size_t length) {
+	if (syscall(SYS_mmap, addr, length, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS |MAP_FIXED, -1, 0) != 0) {
+		// The cases for EINVAL for munmap and mmap are the same, so pass this error back to the user
+		if (errno == EINVAL)
+			return -1;
+		// All other errors are unexpected and we cannot recover from them
+		fprintf(stderr, "failed to detach memory in ffmunmap");
+		perror("mmap");
+		abort();
+	};
+	return 0;
 }
 #endif
