@@ -3401,12 +3401,12 @@ because the OS won't assign physical memory right away. We do lose virtual
 address space.
 */
 int ffmunmap(void *addr, size_t length) {
-	if (syscall(SYS_mmap, addr, length, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS |MAP_FIXED, -1, 0) != 0) {
+	if (syscall(SYS_mmap, addr, length, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS |MAP_FIXED, -1, 0) == -1) {
 		// The cases for EINVAL for munmap and mmap are the same, so pass this error back to the user
 		if (errno == EINVAL)
 			return -1;
 		// All other errors are unexpected and we cannot recover from them
-		fprintf(stderr, "failed to detach memory in ffmunmap");
+		fprintf(stderr, "failed to detach memory in ffmunmap\n");
 		perror("mmap");
 		abort();
 	};
