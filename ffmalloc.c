@@ -3387,7 +3387,7 @@ Pass the mmap request to the OS. Remove address hints that conflict with ffmallo
 void *ffmmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
 	// If there is an address hint inside the range of one time allocation, remove it.
 	if ((byte *)addr >= baseAddress && (byte *)addr < poolHighWater &&
-			((flags & (MAP_FIXED | MAP_FIXED_NOREPLACE)) != 0)) {
+			((flags & (MAP_FIXED | MAP_FIXED_NOREPLACE)) == 0)) {
 		addr = 0;
 	}
     return (void *)syscall(SYS_mmap, addr, length, prot, flags, fd, offset);
