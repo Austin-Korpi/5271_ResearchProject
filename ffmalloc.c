@@ -712,8 +712,12 @@ static inline void* os_alloc_highwater(size_t size) {
 static inline int os_decommit(void* startAddress, size_t size) {
 	// Surprisingly, benchmarking seems to suggest that unmapping is actually
 	// faster than madvise. Revisit in the future
-	return munmap(startAddress, size);
 	//return madvise(startAddress, size, MADV_FREE);
+#ifdef NEVER_UNMAP
+	return munmap(startAddress, size); // This will leave the page mapped
+#else
+	return syscall(SYS_munmap, startAddress, size); // This will unmap the page
+#endif
 }
 
 static inline int os_free(void* startAddress) {
@@ -722,7 +726,11 @@ static inline int os_free(void* startAddress) {
 	// the pool getting the axe and figure out the size
 	struct pagepool_t* pool = find_pool_for_ptr((const byte*)startAddress);
 	if (pool != NULL) {
-		return munmap(pool->start, pool->end - pool->start);
+#ifdef NEVER_UNMAP
+		return munmap(pool->start, pool->end - pool->start); // This will leave the page mapped
+#else
+		return syscall(SYS_munmap, pool->start, pool->end - pool->start); // This will unmap the page
+#endif
 	}
 	else {
 		// Wasn't a pool - that shouldn't happen
