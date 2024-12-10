@@ -5,8 +5,8 @@
 #include <string.h>
 
 
-#define SCALE 1000
-#define STATS_FILE "memory_stats_with_custom_implementation.txt"
+#define SCALE 1000000
+#define STATS_FILE "memory_stats.txt"
 
 
 void log_memory_stats(const char* stage) {
@@ -56,6 +56,7 @@ void main() {
   }
 
   log_memory_stats("After Combined Test");
-
+  sleep(2);
+  log_memory_stats("After Cooldown");
   printf("Done\n");
 }

@@ -1,20 +1,25 @@
 === Memory Stats at Inital State ===
-VmSize:	 1088052 kB
-VmRSS:	   38440 kB
+VmSize:	 1095748 kB
+VmRSS:	   46320 kB
 VmData:	   41072 kB
 
 === Memory Stats at After Mass Mapping ===
-VmSize:	 1092052 kB
-VmRSS:	   38440 kB
-VmData:	   45072 kB
+VmSize:	 5095748 kB
+VmRSS:	   46320 kB
+VmData:	 4041072 kB
 
 === Memory Stats at After Mass Unmapping ===
-VmSize:	 1092052 kB
-VmRSS:	   38440 kB
+VmSize:	 5095748 kB
+VmRSS:	   46320 kB
 VmData:	   41072 kB
 
 === Memory Stats at After Combined Test ===
-VmSize:	 1096052 kB
-VmRSS:	   38440 kB
+VmSize:	 9095748 kB
+VmRSS:	   46320 kB
+VmData:	   41072 kB
+
+=== Memory Stats at After Cooldown ===
+VmSize:	 9095748 kB
+VmRSS:	   46448 kB
 VmData:	   41072 kB
 
