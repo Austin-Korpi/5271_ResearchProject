@@ -1,0 +1,20 @@
+=== Memory Stats at Inital State ===
+VmSize:	 1088052 kB
+VmRSS:	   38440 kB
+VmData:	   41072 kB
+
+=== Memory Stats at After Mass Mapping ===
+VmSize:	 1092052 kB
+VmRSS:	   38440 kB
+VmData:	   45072 kB
+
+=== Memory Stats at After Mass Unmapping ===
+VmSize:	 1092052 kB
+VmRSS:	   38440 kB
+VmData:	   41072 kB
+
+=== Memory Stats at After Combined Test ===
+VmSize:	 1096052 kB
+VmRSS:	   38440 kB
+VmData:	   41072 kB
+
