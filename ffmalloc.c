@@ -3390,26 +3390,46 @@ static void print_current_usage() {
 
 #ifdef FF_WRAP_MMAP
 /*
-Pass the mmap request to the OS. Remove address hints that conflict with ffmalloc.
+Create the mapping below the highwatermark (and move it up)
 */
 void *ffmmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
-	// If there is an address hint inside the range of one time allocation, remove it.
-	if ((byte *)addr >= baseAddress && (byte *)addr < poolHighWater &&
-			((flags & (MAP_FIXED | MAP_FIXED_NOREPLACE)) == 0)) {
-		addr = 0;
+	// We can't deal with these flags. Map them as requested
+	if ((flags & (MAP_FIXED | MAP_FIXED_NOREPLACE | MAP_32BIT)) != 0){
+    	return (void *)syscall(SYS_mmap, addr, length, prot, flags, fd, offset);
 	}
-    return (void *)syscall(SYS_mmap, addr, length, prot, flags, fd, offset);
+
+	void* result = NULL;
+	void* localHigh = FFAtomicExchangeAdvancePtr(poolHighWater, length);
+	flags |= MAP_FIXED_NOREPLACE;
+	while(result == NULL) {
+		result = (void *)syscall(SYS_mmap, localHigh, length, prot, flags, fd, offset);
+		if(result == MAP_FAILED) {
+			if (errno != EEXIST) {
+				return result;
+			}
+			// Maybe another thread beat us. Advance pointer and try again
+			localHigh = FFAtomicExchangeAdvancePtr(poolHighWater, POOL_SIZE);
+			result = NULL;
+		}
+	}
+	return result;
 }
 
 
 /* 
-Don't unmap memory. This would allow malloc or mmap to reuse it. Instead, 
-call mmap again on the same memory. We get the original physical memory back,
-because the OS won't assign physical memory right away. We do lose virtual
-address space.
+Unmap the mapping if we can. If it is below the high water mark, it won't
+be mapped again. Otherwise, don't unmap. This stops malloc or mmap from reusing
+the address space it. Instead, call mmap again on the same memory. We get the 
+physical memory back, because the OS won't assign physical memory right away.
+We do lose virtual address space.
 */
 int ffmunmap(void *addr, size_t length) {
-	if (syscall(SYS_mmap, addr, length, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS |MAP_FIXED, -1, 0) == -1) {
+	// If the mapping is in a safe location and won't be mapped again, unmap it
+	if ((byte *)addr < poolHighWater) {
+		return syscall(SYS_munmap, addr, length);
+	}
+	// Else, leave it mapped so we don't reuse it
+	if (syscall(SYS_mmap, addr, length, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == -1) {
 		// The cases for EINVAL for munmap and mmap are the same, so pass this error back to the user
 		if (errno == EINVAL)
 			return -1;
