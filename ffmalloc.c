@@ -713,11 +713,7 @@ static inline int os_decommit(void* startAddress, size_t size) {
 	// Surprisingly, benchmarking seems to suggest that unmapping is actually
 	// faster than madvise. Revisit in the future
 	//return madvise(startAddress, size, MADV_FREE);
-#ifdef NEVER_UNMAP
-	return munmap(startAddress, size); // This will leave the page mapped
-#else
-	return syscall(SYS_munmap, startAddress, size); // This will unmap the page
-#endif
+	return syscall(SYS_munmap, startAddress, size);
 }
 
 static inline int os_free(void* startAddress) {
@@ -726,11 +722,7 @@ static inline int os_free(void* startAddress) {
 	// the pool getting the axe and figure out the size
 	struct pagepool_t* pool = find_pool_for_ptr((const byte*)startAddress);
 	if (pool != NULL) {
-#ifdef NEVER_UNMAP
-		return munmap(pool->start, pool->end - pool->start); // This will leave the page mapped
-#else
-		return syscall(SYS_munmap, pool->start, pool->end - pool->start); // This will unmap the page
-#endif
+		return syscall(SYS_munmap, pool->start, pool->end - pool->start);
 	}
 	else {
 		// Wasn't a pool - that shouldn't happen
@@ -3390,7 +3382,7 @@ static void print_current_usage() {
 
 #ifdef FF_WRAP_MMAP
 /*
-Create the mapping below the highwatermark (and move it up)
+Create the mapping at the highwatermark (and move it up)
 */
 void *ffmmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
 	// We can't deal with these flags. Map them as requested
