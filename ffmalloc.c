@@ -3390,6 +3390,7 @@ void *ffmmap(void *addr, size_t length, int prot, int flags, int fd, off_t offse
     	return (void *)syscall(SYS_mmap, addr, length, prot, flags, fd, offset);
 	}
 
+	length = ALIGN_TO(length, PAGE_SIZE);
 	void* result = NULL;
 	void* localHigh = FFAtomicExchangeAdvancePtr(poolHighWater, length);
 	flags |= MAP_FIXED_NOREPLACE;
