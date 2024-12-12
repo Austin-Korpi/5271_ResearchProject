@@ -1,5 +1,8 @@
 .vscode
-*.txt
+*.txt*
 *.o
 *.so
 a.out
+benchmark-launcher-cli
+*.png
+*.rdb
